@@ -1,0 +1,92 @@
+import React, { useState, useEffect } from 'react';
+
+const FindBooks = () => {
+    const [course, setCourse] = useState('');
+    const [books, setBooks] = useState([]);
+    const [message, setMessage] = useState('');
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setMessage('Searching...');
+        setBooks([]);
+
+        try {
+            const response = await fetch(`/api/SearchBooks?course=${encodeURIComponent(course)}`); //  Azure Function
+            if (response.ok) {
+                const data = await response.json();
+                if (data.length > 0) {
+                    setBooks(data);
+                    setMessage(''); // Clear previous message
+                }
+                else {
+                    setMessage('No books found for this course.');
+                }
+
+            } else {
+                const errorText = await response.text();
+                setMessage(`Error: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            setMessage(`Error: ${error.message}`);
+        }
+    };
+
+    //  Function to simulate sending a notification.  In a real app, this
+    //  would be triggered by a user viewing the details of a book.
+    const sendNotification = async (bookId) => {
+        try {
+            const response = await fetch('/api/SendNotification', {  //  Azure Function
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ bookId }),
+            });
+
+            if (response.ok) {
+                console.log('Notification sent!'); //  For demo
+            } else {
+                const errorText = await response.text();
+                console.error(`Error sending notification: ${response.status} - ${errorText}`);
+            }
+        } catch (error) {
+            console.error(`Error sending notification: ${error.message}`);
+        }
+    };
+
+    //  Simulate a book view (in a real app, this would be on a details page)
+    useEffect(() => {
+        if (books.length > 0) {
+            //  Send a notification for the first book in the results (for demo)
+            sendNotification(books[0].BookID);
+        }
+    }, [books]);
+
+    return (
+        <div>
+            <h2>Find Books</h2>
+            <form onSubmit={handleSearch}>
+                <div>
+                    <label>Course:</label>
+                    <input type="text" value={course} onChange={(e) => setCourse(e.target.value)} required />
+                </div>
+                <button type="submit">Search</button>
+            </form>
+            <p>{message}</p>
+            {books.length > 0 && (
+                <div>
+                    <h3>Results:</h3>
+                    <ul>
+                        {books.map((book) => (
+                            <li key={book.BookID}>
+                                <strong>{book.Title}</strong> ({book.ISBN}) - {book.Course} - ${book.Price} - {book.SellerEmail} (Posted: {new Date(book.PostDate).toLocaleDateString()})
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default FindBooks;
